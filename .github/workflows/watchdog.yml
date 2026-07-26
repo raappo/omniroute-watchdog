@@ -1,0 +1,26 @@
+name: OmniRoute Studio Watchdog
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-studio-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Lightning SDK
+        run: pip install lightning-sdk
+
+      - name: Ensure Studio is running
+        env:
+          LIGHTNING_USER_ID: ${{ secrets.LIGHTNING_USER_ID }}
+          LIGHTNING_API_KEY: ${{ secrets.LIGHTNING_API_KEY }}
+        run: |
+          python3 -c "
+          from lightning_sdk import Studio
+          s = Studio('omniroute-gateway', 'raappo-teamspace', org='raappo-org', create_ok=False)
+          print('Current status check, attempting start (safe no-op if already running)...')
+          s.start()
+          print('Done.')
+          "
