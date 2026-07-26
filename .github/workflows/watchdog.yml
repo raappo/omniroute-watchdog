@@ -29,7 +29,7 @@ jobs:
           from lightning_sdk import Studio
 
           TIMESTAMP_FILE = "session_start.txt"
-          MAX_SESSION_SECONDS = 13200  # 3h40m
+          MAX_SESSION_SECONDS = 12000  # 3h40m
 
           s = Studio('omniroute-gateway', 'raappo-teamspace', org='raappo-org', create_ok=False)
 
