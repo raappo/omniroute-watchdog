@@ -5,10 +5,16 @@ on:
     - cron: '*/15 * * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   keep-studio-alive:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
       - name: Install Lightning SDK
         run: pip install lightning-sdk
 
@@ -24,3 +30,12 @@ jobs:
           s.start()
           print('Done.')
           "
+
+      - name: Keep workflow alive (prevent 60-day auto-disable)
+        run: |
+          git config user.name "watchdog-bot"
+          git config user.email "watchdog-bot@users.noreply.github.com"
+          echo "Last run: $(date)" > .keepalive
+          git add .keepalive
+          git commit -m "keepalive" || echo "No changes to commit"
+          git push
