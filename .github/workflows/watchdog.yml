@@ -18,43 +18,37 @@ jobs:
       - name: Install Lightning SDK
         run: pip install lightning-sdk
 
-      - name: Manage Studio (start if stopped, stop if past safe session limit)
+      - name: Manage Studio (uses real system uptime, no bookkeeping file needed)
         env:
           LIGHTNING_USER_ID: ${{ secrets.LIGHTNING_USER_ID }}
           LIGHTNING_API_KEY: ${{ secrets.LIGHTNING_API_KEY }}
         run: |
-          python3 << 'EOF'
-          import os
-          import time
-          from lightning_sdk import Studio
+          python3 -c "
+          from lightning_sdk import Studio, Status
 
-          TIMESTAMP_FILE = "session_start.txt"
-          MAX_SESSION_SECONDS = 9000  # 2h30m
+          MAX_UPTIME_SECONDS = 9000  # 2h30m
 
           s = Studio('omniroute-gateway', 'raappo-teamspace', org='raappo-org', create_ok=False)
 
-          if os.path.exists(TIMESTAMP_FILE):
-              with open(TIMESTAMP_FILE) as f:
-                  started_at = float(f.read().strip())
-              elapsed = time.time() - started_at
-              print(f"Session has been tracked for {elapsed:.0f} seconds")
-              if elapsed > MAX_SESSION_SECONDS:
-                  print("Past safe session limit — stopping Studio")
+          if s.status == Status.Running:
+              result = s.run('cat /proc/uptime')
+              uptime_seconds = float(str(result).split()[0])
+              print(f'Real system uptime: {uptime_seconds:.0f}s')
+              if uptime_seconds > MAX_UPTIME_SECONDS:
+                  print('Past safe uptime limit — stopping')
                   s.stop()
-                  os.remove(TIMESTAMP_FILE)
               else:
-                  print("Within safe session window — no action needed")
+                  print('Within safe window — no action')
           else:
-              print("No active session tracked — starting Studio and recording timestamp")
+              print('Studio not running — starting')
               s.start()
-              with open(TIMESTAMP_FILE, "w") as f:
-                  f.write(str(time.time()))
-          EOF
+          "
 
-      - name: Commit updated state (prevents 60-day auto-disable too)
+      - name: Keep workflow alive (prevents 60-day auto-disable)
         run: |
           git config user.name "watchdog-bot"
           git config user.email "watchdog-bot@users.noreply.github.com"
-          git add -A
-          git commit -m "watchdog update: $(date)" || echo "No changes to commit"
+          echo "Last run: $(date)" > .keepalive
+          git add .keepalive
+          git commit -m "keepalive: $(date)" || echo "No changes to commit"
           git push
