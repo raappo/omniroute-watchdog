@@ -1,0 +1,25 @@
+name: Repo Keepalive
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # once a week, Monday 9:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Trivial weekly commit (keeps GitHub's 60-day inactivity rule satisfied)
+        run: |
+          git config user.name "keepalive-bot"
+          git config user.email "keepalive-bot@users.noreply.github.com"
+          echo "Last keepalive: $(date)" > .keepalive
+          git add .keepalive
+          git commit -m "keepalive: $(date)" || echo "No changes to commit"
+          git push
